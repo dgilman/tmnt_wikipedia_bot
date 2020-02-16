@@ -8,6 +8,8 @@ from lib.constants import (
     CHARS_ONLY,
     PRONUNCIATION_OVERRIDES,
     TMNT_STRESSES,
+    DEL_CHARS,
+    SWAP_CHARS,
 )
 from num2words import num2words as n2w
 
@@ -71,7 +73,7 @@ def getTitleStresses(title: str):
         String, stresses of each syllable as 0, 1, and 2s.
     """
     title_words = title.split()
-    title_stresses = ""
+    title_stresses = []
     while title_words:
         if len(title_stresses) > 8:
             return None
@@ -81,9 +83,9 @@ def getTitleStresses(title: str):
         if isinstance(word_stresses, list):
             title_words = word_stresses + title_words
         else:
-            title_stresses += getWordStresses(word)
+            title_stresses.append(getWordStresses(word))
 
-    return title_stresses
+    return ''.join(title_stresses)
 
 
 def getWordStresses(word: str):
@@ -149,9 +151,6 @@ def cleanStr(s: str):
     Returns:
         String without offending characters
     """
-    DEL_CHARS = ["(", ")", "[", "]", "{", "}", ",", ":", ";", "."]
-    SWAP_CHARS = [("-", " ")]
-
     for char in DEL_CHARS:
         s = s.replace(char, "")
 

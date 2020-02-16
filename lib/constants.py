@@ -37,3 +37,6 @@ DAVY_CROCKETT_LYRICS = ("king of the wild frontier!",
                         "helpin' their legend grow!",
 )
 WIKIDATA_REGEX = re.compile('https://www.wikidata.org/wiki/(Q\d+)')
+DEL_CHARS = ["(", ")", "[", "]", "{", "}", ",", ":", ";", "."]
+SWAP_CHARS = [("-", " ")]
+

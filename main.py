@@ -10,7 +10,7 @@ import wikipedia
 from lib.constants import (
     BACKOFF, MAX_ATTEMPTS, MAX_STATUS_LEN,
     TIMEOUT_BACKOFF, DAVY_CROCKETT_LYRICS,
-    WIKIDATA_REGEX
+    WIKIDATA_REGEX, DEL_CHARS, SWAP_CHARS,
 )
 from lib import twitter
 from lib import words
@@ -85,9 +85,33 @@ def checkTenPagesForTMNT():
 
 
 def formatLyrics(word):
-    first, _, rest = word.partition(' ')
+    # This is, of course, hacky, but we need to figure out
+    # how the syllable stress code interpreted our wiki title
+    # and break it up along the correct lines.
+
+    # To estimate, we call getTitleStresses on increasing slices of
+    # the input word and use whatever maximum span resulted in two syllables.
+    # Unfortunately, for some words the greedy algorithm is unlucky:
+    # this carves 'Antismoking' into 'Antis' 'moking',
+    # which is wrong but still entertaining.
+
+    max_two_syllables = None
+    for char_idx in range(len(word)):
+        cleaned_word = words.cleanStr(word[:char_idx+1])
+        stresses = words.getTitleStresses(cleaned_word)
+        if len(stresses) == 2:
+            max_two_syllables = word[:char_idx+1].strip()
+
+    if max_two_syllables is None:
+        max_two_syllables = word
+
+    # Examples:
+    # George A. Archer -> George A., George A. Archer, king of the wild frontier!
+    # Anti-fashion -> Anti-, Anti-fashion, king of the wild frontier!
+    # Antismoking -> Anti, Antismoking, king of the wild frontier!
+
     epithet = rng.choice(DAVY_CROCKETT_LYRICS)
-    return f"{first}, {first} {rest}, {epithet}"
+    return f"{max_two_syllables}, {word}, {epithet}"
 
 
 def getProfilePicture(word):
