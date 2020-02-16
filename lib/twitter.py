@@ -1,5 +1,9 @@
 import sys
+import io
+
 import tweepy
+import requests
+
 
 from collections import namedtuple
 from lib.constants import KEY_PATH
@@ -30,7 +34,7 @@ def getTwitterCredentials(keyfile=KEY_PATH):
     )
 
 
-def sendTweet(tweet_text: str, image_path=""):
+def sendTweet(tweet_text: str, image_path=None):
     """Post some text, and optionally an image to twitter.
 
     Args:
@@ -45,8 +49,10 @@ def sendTweet(tweet_text: str, image_path=""):
 
     api = tweepy.API(auth)
 
-    if image_path:
-        return api.update_with_media(filename=image_path, status=tweet_text)
+    if image_path is not None:
+        resp = requests.get(image_path)
+        buffa = io.BytesIO(resp.content)
+        return api.update_with_media(filename=image_path, file=buffa, status=tweet_text)
     else:
         return api.update_status(tweet_text)
 

@@ -1,5 +1,7 @@
+twitter_keys.txt
 .vscode/
 *.pyc
 logos/
 .keys
 *.png
+venv/

@@ -30,7 +30,7 @@ def isTMNT(title: str):
     title = cleanStr(title)
     title_stresses = getTitleStresses(title)
 
-    if (not title_stresses) or (len(title_stresses) != 8):
+    if (not title_stresses) or (len(title_stresses) != 4):
         return False
 
     return True if TMNT_STRESSES.match(title_stresses) else False

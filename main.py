@@ -2,25 +2,30 @@
 import os
 import sys
 import time
+import random
+
+import requests
 import wikipedia
 
-from lib.constants import BACKOFF, MAX_ATTEMPTS, MAX_STATUS_LEN, TIMEOUT_BACKOFF
-from lib import images
-from lib import mastodon
+from lib.constants import (
+    BACKOFF, MAX_ATTEMPTS, MAX_STATUS_LEN,
+    TIMEOUT_BACKOFF, DAVY_CROCKETT_LYRICS,
+    WIKIDATA_REGEX
+)
 from lib import twitter
 from lib import words
 
 
+rng = random.SystemRandom()
+
+
 def main():
     title = searchForTMNT(MAX_ATTEMPTS, BACKOFF)
-    logo = images.getLogo(words.addPadding(title))
-    status_text = "\n".join((title, words.getWikiUrl(title)))
-
-    if len(status_text) > MAX_STATUS_LEN:
-        status_text = title
-
-    _ = twitter.sendTweet(status_text, logo)
-    _ = mastodon.sendToot(status_text, logo)
+    lyrics = formatLyrics(title)
+    profile_pic = getProfilePicture(title)
+    status_text = "\n".join((lyrics, words.getWikiUrl(title)))
+    twitter.sendTweet(status_text, profile_pic)
+    print((status_text, profile_pic))
 
 
 def searchForTMNT(attempts=MAX_ATTEMPTS, backoff=BACKOFF):
@@ -77,6 +82,54 @@ def checkTenPagesForTMNT():
         if words.isTMNT(title):
             return title
     return False
+
+
+def formatLyrics(word):
+    first, _, rest = word.partition(' ')
+    epithet = rng.choice(DAVY_CROCKETT_LYRICS)
+    return f"{first}, {first} {rest}, {epithet}"
+
+
+def getProfilePicture(word):
+    # I don't know how reliably page.references is going to work, it seems like the
+    # wikipedia module doesn't really have a good way of dealing with this data.
+    try:
+        page = wikipedia.page(word)
+    except wikipedia.exceptions.DisambiguationError as e:
+        return getProfilePicture(e.options[0])
+    except wikipedia.exceptions.WikipediaException as e:
+        print(f"Wikipedia exception: {e}")
+        sys.exit(1)
+    wikidatas = []
+    for url in page.references:
+        match = WIKIDATA_REGEX.search(url)
+        if not match:
+            continue
+        wikidata_ref = match.group(1)
+        wikidata_json = requests.get(f"https://www.wikidata.org/wiki/Special:EntityData/{wikidata_ref}.json").json()
+        relevant_wikidata = wikidata_json['entities'][wikidata_ref]
+        # If there happen to be more than one wikidata link on the page
+        # skip the offenders.
+        if relevant_wikidata.get('labels', {}).get('en', {}).get('value') != word:
+            continue
+        images = relevant_wikidata.get('claims', {}).get('P18', [])
+        if len(images) == 0:
+            continue
+        image_name = images[0]['mainsnak']['datavalue']['value']
+        commons_query = f"https://commons.wikimedia.org/w/api.php?action=query&titles=File:{image_name}&format=json&prop=imageinfo&iiprop=url"
+        commons_resp = requests.get(commons_query).json()
+        pages = commons_resp.get('query', {}).get('pages', {})
+        # I guess this API can return multiple pages, but it returns them as object keys, not a list (???)
+        page_ids = list(pages.keys())
+        if len(page_ids) != 1:
+            continue
+        page_obj = pages[page_ids[0]]
+        imageinfos = page_obj.get('imageinfo', [])
+        if len(imageinfos) == 0:
+            continue
+        imageinfo = imageinfos[0]
+        return imageinfo['url']
+    return
 
 
 if __name__ == "__main__":
